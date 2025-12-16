@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
+
+enum CourtType {
+  INDOOR
+  OUTDOOR
+}
+
+enum PricingRuleType {
+  PEAK_HOUR
+  WEEKEND
+  INDOOR_COURT
+  EQUIPMENT
+  COACH
+}
+
+enum PricingRuleValueType {
+  PERCENTAGE
+  FLAT
+}
+
+//////////////////////////////////////////////////////
+// CORE MODELS
+//////////////////////////////////////////////////////
+
+model Booking {
+  id          String   @id @default(uuid())
+  userId      String
+  startTime   DateTime
+  endTime     DateTime
+  totalPrice  Int
+  createdAt   DateTime @default(now())
+
+  courts      BookingCourt[]
+  equipment   BookingEquipment[]
+  coach       BookingCoach?
+
+  @@index([startTime, endTime])
+}
+
+model Court {
+  id        String    @id @default(uuid())
+  name      String
+  type      CourtType
+  isActive  Boolean   @default(true)
+
+  bookings  BookingCourt[]
+}
+
+model Equipment {
+  id        String   @id @default(uuid())
+  name      String
+  totalQty  Int
+  isActive  Boolean  @default(true)
+
+  bookings  BookingEquipment[]
+}
+
+model Coach {
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+
+  bookings  BookingCoach[]
+}
+
+//////////////////////////////////////////////////////
+// JOIN MODELS (ATOMIC BOOKING)
+//////////////////////////////////////////////////////
+
+model BookingCourt {
+  bookingId String
+  courtId   String
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  court   Court   @relation(fields: [courtId], references: [id])
+
+  @@id([bookingId, courtId])
+  @@index([courtId])
+}
+
+model BookingEquipment {
+  bookingId   String
+  equipmentId String
+  quantity    Int
+
+  booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  equipment Equipment @relation(fields: [equipmentId], references: [id])
+
+  @@id([bookingId, equipmentId])
+  @@index([equipmentId])
+}
+
+model BookingCoach {
+  bookingId String @id
+  coachId   String
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  coach   Coach   @relation(fields: [coachId], references: [id])
+
+  @@index([coachId])
+}
+
+//////////////////////////////////////////////////////
+// PRICING CONFIGURATION
+//////////////////////////////////////////////////////
+
+model PricingRule {
+  id          String               @id @default(uuid())
+  name        String
+  type        PricingRuleType
+  valueType  PricingRuleValueType
+  value       Int
+  priority    Int
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+}
